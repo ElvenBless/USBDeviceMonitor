@@ -1,0 +1,33 @@
+name: Publish NuGet Package
+
+on:
+  push:
+    branches: [ "Release" ]
+  pull_request:
+    branches: [ "Release" ]
+
+jobs:
+
+  build:
+    runs-on: windows-latest
+    
+    env:
+      Project_Name: Source\USBDeviceMonitor.Win\USBDeviceMonitor.Win.csproj
+      Wap_Project_Packages: Source\Packages\*.nupkg 
+      Wap_Project_Path: Source\USBDeviceMonitor.Win\USBDeviceMonitor.Win.csproj
+      Nuget_Api_Key: ${{ secrets.NUGET_API_KEY }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '7.0.x'
+
+      - name: Build
+        run: dotnet build $env:Project_Name --configuration Release
+
+      - name: Publish NuGet package
+        run: dotnet nuget push $env:Wap_Project_Packages --api-key $env:Nuget_Api_Key --source https://api.nuget.org/v3/index.json --skip-duplicate
