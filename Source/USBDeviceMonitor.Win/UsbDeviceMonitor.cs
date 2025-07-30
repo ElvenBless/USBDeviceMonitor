@@ -1,67 +1,9 @@
 ﻿#pragma warning disable CA1416 // Validate platform compatibility
 using System.Management;
 using System.Reactive.Subjects;
-using System.Text.RegularExpressions;
 
 namespace USBDeviceMonitor.Win
 {
-    public interface IUsbDeviceMonitor
-    {
-        IEnumerable<UsbDeviceInfo> GetConnectedDevices();
-        IObservable<UsbDeviceInfo> DeviceConnected { get; }
-        IObservable<UsbDeviceInfo> DeviceDisconnected { get; }
-        void StartMonitoring();
-        void StopMonitoring();
-    }
-
-    public class UsbDeviceInfo
-    {
-        private static readonly Regex _vidPidRegex = new(@"VID_([0-9A-F]{4})&PID_([0-9A-F]{4})", RegexOptions.IgnoreCase);
-
-        public string DeviceId { get; }
-        public string VendorId { get; }
-        public string ProductId { get; }
-        public string Description { get; }
-
-        public UsbDeviceInfo(string? deviceId, string? vendorId, string? productId, string? description)
-        {
-            DeviceId = deviceId ?? string.Empty;
-            VendorId = vendorId ?? string.Empty;
-            ProductId = productId ?? string.Empty;
-            Description = description ?? string.Empty;
-        }
-
-        public UsbDeviceInfo(ManagementBaseObject device)
-        {
-            string deviceId = device["DeviceID"]?.ToString() ?? string.Empty;
-            string description = device["Description"]?.ToString() ?? string.Empty;
-
-            var (vid, pid) = ParseDeviceIds(deviceId);
-
-            DeviceId = deviceId;
-            VendorId = vid;
-            ProductId = pid;
-            Description = description;
-        }
-
-        private static (string vid, string pid) ParseDeviceIds(string? deviceId)
-        {
-            try
-            {
-                if (deviceId is not null)
-                {
-                    var match = _vidPidRegex.Match(deviceId);
-                    return match.Success ? (match.Groups[1].Value, match.Groups[2].Value) : (string.Empty, string.Empty);
-                }
-                return (string.Empty, string.Empty);
-            }
-            catch
-            {
-                return (string.Empty, string.Empty);
-            }
-        }
-
-    }
 
     public partial class UsbDeviceMonitor : IUsbDeviceMonitor
     {
@@ -80,16 +22,40 @@ namespace USBDeviceMonitor.Win
             _disconnectWatcher = GetManagementEventWatcher("__InstanceDeletionEvent");
         }
 
-        public IEnumerable<UsbDeviceInfo> GetConnectedDevices()
+        public IEnumerable<UsbDeviceInfo> GetConnectedDevices(
+            UsbDeviceType types = UsbDeviceType.All,
+            Func<UsbDeviceInfo, bool>? predicate = null)
         {
             var devices = new List<UsbDeviceInfo>();
+
+            const string query = @"
+                SELECT DeviceID, Description, PNPDeviceID 
+                FROM Win32_PnPEntity 
+                WHERE DeviceID LIKE 'USB%'";
+
             try
             {
-                using var searcher = new ManagementObjectSearcher("SELECT DeviceID, Description FROM Win32_PnPEntity WHERE DeviceID LIKE 'USB%'");
-                devices.AddRange(from ManagementObject managementObject in searcher.Get()
-                                 select new UsbDeviceInfo(managementObject));
+                using var searcher = new ManagementObjectSearcher(query);
+
+                foreach (ManagementObject obj in searcher.Get())
+                {
+                    string? deviceId = obj["DeviceID"]?.ToString();
+                    if (string.IsNullOrEmpty(deviceId))
+                        continue;
+
+                    var info = new UsbDeviceInfo(obj);
+                    if (!types.HasFlag(info.Type))
+                        continue;
+
+                    if (predicate == null || predicate(info))
+                        devices.Add(info);
+                }
             }
-            catch (ManagementException) { /* Обработка ошибок WMI */ }
+            catch (ManagementException)
+            {
+                // WMI failed, return partial or empty result
+            }
+
             return devices;
         }
 

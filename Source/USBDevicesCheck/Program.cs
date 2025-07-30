@@ -1,4 +1,5 @@
-﻿using USBDeviceMonitor.Win;
+﻿using System.Reactive.Linq;
+using USBDeviceMonitor.Win;
 
 namespace USBDevicesCheck;
 
@@ -8,16 +9,24 @@ internal class Program
     {
         var monitor = new UsbDeviceMonitor();
 
-        monitor.DeviceConnected.Subscribe(OnDeviceConnected);
-        monitor.DeviceDisconnected.Subscribe(OnDeviceDisconnected);
+        var subscription = monitor.DeviceConnected
+            .Where(d => d.Type.HasFlag(UsbDeviceType.Generic))
+            .Subscribe(OnDeviceConnected);
+
+        monitor.DeviceDisconnected
+            .Where(d => d.Type.HasFlag(UsbDeviceType.Generic))
+            .Subscribe(OnDeviceDisconnected);
 
         Console.WriteLine("Current USB devices:");
-        foreach (var device in monitor.GetConnectedDevices())
+        foreach (var device in monitor.GetConnectedDevices(UsbDeviceType.Generic))
         {
             Console.WriteLine(device.DeviceId);
             Console.WriteLine(device.ProductId);
             Console.WriteLine(device.VendorId);
             Console.WriteLine(device.Description);
+            Console.WriteLine(device.DriveLetter);
+            Console.WriteLine(device.Serial);
+            Console.WriteLine(device.Type);
             Console.WriteLine("-----");
         }
 
@@ -35,6 +44,9 @@ internal class Program
         Console.WriteLine(device.ProductId);
         Console.WriteLine(device.VendorId);
         Console.WriteLine(device.Description);
+        Console.WriteLine(device.DriveLetter);
+        Console.WriteLine(device.Serial);
+        Console.WriteLine(device.Type);
         Console.WriteLine("-----");
     }
 
@@ -46,6 +58,10 @@ internal class Program
         Console.WriteLine(device.ProductId);
         Console.WriteLine(device.VendorId);
         Console.WriteLine(device.Description);
+        Console.WriteLine(device.Description);
+        Console.WriteLine(device.DriveLetter);
+        Console.WriteLine(device.Serial);
+        Console.WriteLine(device.Type);
         Console.WriteLine("-----");
     }
 }
