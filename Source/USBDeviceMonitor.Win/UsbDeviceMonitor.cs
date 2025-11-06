@@ -10,8 +10,8 @@ namespace USBDeviceMonitor.Win
         private readonly Subject<UsbDeviceInfo> _deviceConnectedSubject = new();
         private readonly Subject<UsbDeviceInfo> _deviceDisconnectedSubject = new();
 
-        public IObservable<UsbDeviceInfo> DeviceConnected => _deviceConnectedSubject;
-        public IObservable<UsbDeviceInfo> DeviceDisconnected => _deviceDisconnectedSubject;
+        public IObservable<IUsbDeviceInfo> DeviceConnected => _deviceConnectedSubject;
+        public IObservable<IUsbDeviceInfo> DeviceDisconnected => _deviceDisconnectedSubject;
 
         private readonly ManagementEventWatcher _connectWatcher;
         private readonly ManagementEventWatcher _disconnectWatcher;
@@ -22,9 +22,9 @@ namespace USBDeviceMonitor.Win
             _disconnectWatcher = GetManagementEventWatcher("__InstanceDeletionEvent");
         }
 
-        public IEnumerable<UsbDeviceInfo> GetConnectedDevices(
+        public IEnumerable<IUsbDeviceInfo> GetConnectedDevices(
             UsbDeviceType types = UsbDeviceType.All,
-            Func<UsbDeviceInfo, bool>? predicate = null)
+            Func<IUsbDeviceInfo, bool>? predicate = null)
         {
             var devices = new List<UsbDeviceInfo>();
 

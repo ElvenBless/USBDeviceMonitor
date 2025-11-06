@@ -3,12 +3,12 @@ namespace USBDeviceMonitor.Win
 {
     public interface IUsbDeviceMonitor
     {
-        IEnumerable<UsbDeviceInfo> GetConnectedDevices(
+        IEnumerable<IUsbDeviceInfo> GetConnectedDevices(
             UsbDeviceType types = UsbDeviceType.All,
-            Func<UsbDeviceInfo, bool>? predicate = null);
+            Func<IUsbDeviceInfo, bool>? predicate = null);
 
-        IObservable<UsbDeviceInfo> DeviceConnected { get; }
-        IObservable<UsbDeviceInfo> DeviceDisconnected { get; }
+        IObservable<IUsbDeviceInfo> DeviceConnected { get; }
+        IObservable<IUsbDeviceInfo> DeviceDisconnected { get; }
         void StartMonitoring();
         void StopMonitoring();
     }

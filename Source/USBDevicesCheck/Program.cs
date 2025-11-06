@@ -36,7 +36,7 @@ internal class Program
         monitor.StopMonitoring();
     }
 
-    private static void OnDeviceConnected(UsbDeviceInfo device)
+    private static void OnDeviceConnected(IUsbDeviceInfo device)
     {
         Console.WriteLine();
         Console.WriteLine($"Connected:");
@@ -50,7 +50,7 @@ internal class Program
         Console.WriteLine("-----");
     }
 
-    private static void OnDeviceDisconnected(UsbDeviceInfo device)
+    private static void OnDeviceDisconnected(IUsbDeviceInfo device)
     {
         Console.WriteLine();
         Console.WriteLine($"Disconnected:");

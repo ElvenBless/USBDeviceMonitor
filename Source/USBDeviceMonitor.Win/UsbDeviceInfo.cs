@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace USBDeviceMonitor.Win
 {
-    public class UsbDeviceInfo
+    public class UsbDeviceInfo : IUsbDeviceInfo
     {
         private static readonly Regex _vidPidRegex =
             new(@"VID_([0-9A-F]{4})&PID_([0-9A-F]{4})\\(.+)", RegexOptions.IgnoreCase);
