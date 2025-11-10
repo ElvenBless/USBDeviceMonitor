@@ -90,13 +90,13 @@ monitor.StopMonitoring();
 Собрать решение и запустить тесты:
 
 ```powershell
-dotnet test "c:\Users\MegaD\USBDeviceMonitor\Source\USBDeviceMonitor.sln" -c Release
+dotnet test Source\USBDeviceMonitor.sln -c Release
 ```
 
 Запустить пример консольного приложения:
 
 ```powershell
-dotnet run --project "c:\Users\MegaD\USBDeviceMonitor\Source\USBDevicesCheck\USBDevicesCheck.csproj" -c Debug
+dotnet run --project Source\USBDevicesCheck\USBDevicesCheck.csproj -c Debug
 ```
 
 Примечания:
