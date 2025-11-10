@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-
 namespace USBDeviceMonitor.Win;
 
 /// <summary>
@@ -13,7 +10,7 @@ public class CompositeUsbDeviceInfo : IUsbDeviceInfo
 
     public CompositeUsbDeviceInfo(IList<IUsbDeviceInfo> devices)
     {
-        _allDevices = devices.ToList();
+        _allDevices = [.. devices];
 
         // Aggregate properties
         Type = _allDevices.Aggregate((UsbDeviceType)0, (current, d) => current | d.Type);

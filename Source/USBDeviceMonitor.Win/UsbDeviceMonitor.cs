@@ -1,5 +1,6 @@
 ﻿#pragma warning disable CA1416 // Validate platform compatibility
 using System.Management;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
@@ -16,21 +17,23 @@ public partial class UsbDeviceMonitor : IUsbDeviceMonitor
     private readonly ManagementEventWatcher _connectWatcher;
     private readonly ManagementEventWatcher _disconnectWatcher;
 
-    public UsbDeviceMonitor(bool useCompositeDevices = true)
+    public UsbDeviceMonitor(bool useCompositeDevices = true, IScheduler? scheduler = null)
     {
         _connectWatcher = GetManagementEventWatcher("__InstanceCreationEvent");
         _disconnectWatcher = GetManagementEventWatcher("__InstanceDeletionEvent");
+
+        var sched = scheduler ?? DefaultScheduler.Instance;
 
         if (useCompositeDevices)
         {
 
             DeviceConnected = _deviceConnectedSubject
-                .Buffer(TimeSpan.FromMilliseconds(20))
+                .Buffer(TimeSpan.FromMilliseconds(20), sched)
                 .Where(buffer => buffer.Any())
                 .Select(buffer => buffer.Count == 1 ? buffer.First() : new CompositeUsbDeviceInfo([.. buffer]));
 
             DeviceDisconnected = _deviceDisconnectedSubject
-                .Buffer(TimeSpan.FromMilliseconds(20))
+                .Buffer(TimeSpan.FromMilliseconds(20), sched)
                 .Where(buffer => buffer.Any())
                 .Select(buffer => buffer.Count == 1 ? buffer.First() : new CompositeUsbDeviceInfo([.. buffer]));
         }
