@@ -1,115 +1,133 @@
 ﻿#pragma warning disable CA1416 // Validate platform compatibility
 using System.Management;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
-namespace USBDeviceMonitor.Win
+namespace USBDeviceMonitor.Win;
+
+public partial class UsbDeviceMonitor : IUsbDeviceMonitor
 {
+    private readonly Subject<IUsbDeviceInfo> _deviceConnectedSubject = new();
+    private readonly Subject<IUsbDeviceInfo> _deviceDisconnectedSubject = new();
 
-    public partial class UsbDeviceMonitor : IUsbDeviceMonitor
+    public IObservable<IUsbDeviceInfo> DeviceConnected { get; }
+    public IObservable<IUsbDeviceInfo> DeviceDisconnected { get; }
+
+    private readonly ManagementEventWatcher _connectWatcher;
+    private readonly ManagementEventWatcher _disconnectWatcher;
+
+    public UsbDeviceMonitor(bool useCompositeDevices = true)
     {
-        private readonly Subject<UsbDeviceInfo> _deviceConnectedSubject = new();
-        private readonly Subject<UsbDeviceInfo> _deviceDisconnectedSubject = new();
+        _connectWatcher = GetManagementEventWatcher("__InstanceCreationEvent");
+        _disconnectWatcher = GetManagementEventWatcher("__InstanceDeletionEvent");
 
-        public IObservable<IUsbDeviceInfo> DeviceConnected => _deviceConnectedSubject;
-        public IObservable<IUsbDeviceInfo> DeviceDisconnected => _deviceDisconnectedSubject;
-
-        private readonly ManagementEventWatcher _connectWatcher;
-        private readonly ManagementEventWatcher _disconnectWatcher;
-
-        public UsbDeviceMonitor()
+        if (useCompositeDevices)
         {
-            _connectWatcher = GetManagementEventWatcher("__InstanceCreationEvent");
-            _disconnectWatcher = GetManagementEventWatcher("__InstanceDeletionEvent");
+
+            DeviceConnected = _deviceConnectedSubject
+                .Buffer(TimeSpan.FromMilliseconds(20))
+                .Where(buffer => buffer.Any())
+                .Select(buffer => buffer.Count == 1 ? buffer.First() : new CompositeUsbDeviceInfo([.. buffer]));
+
+            DeviceDisconnected = _deviceDisconnectedSubject
+                .Buffer(TimeSpan.FromMilliseconds(20))
+                .Where(buffer => buffer.Any())
+                .Select(buffer => buffer.Count == 1 ? buffer.First() : new CompositeUsbDeviceInfo([.. buffer]));
         }
-
-        public IEnumerable<IUsbDeviceInfo> GetConnectedDevices(
-            UsbDeviceType types = UsbDeviceType.All,
-            Func<IUsbDeviceInfo, bool>? predicate = null)
+        else
         {
-            var devices = new List<UsbDeviceInfo>();
+            DeviceConnected = _deviceConnectedSubject;
+            DeviceDisconnected = _deviceDisconnectedSubject;
+        }
+    }
 
-            const string query = @"
+    public IEnumerable<IUsbDeviceInfo> GetConnectedDevices(
+        UsbDeviceType types = UsbDeviceType.All,
+        Func<IUsbDeviceInfo, bool>? predicate = null)
+    {
+        var devices = new List<UsbDeviceInfo>();
+
+        const string query = @"
                 SELECT DeviceID, Description, PNPDeviceID 
                 FROM Win32_PnPEntity 
                 WHERE DeviceID LIKE 'USB%'";
 
-            try
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(query);
+
+            foreach (ManagementObject obj in searcher.Get())
             {
-                using var searcher = new ManagementObjectSearcher(query);
+                string? deviceId = obj["DeviceID"]?.ToString();
+                if (string.IsNullOrEmpty(deviceId))
+                    continue;
 
-                foreach (ManagementObject obj in searcher.Get())
-                {
-                    string? deviceId = obj["DeviceID"]?.ToString();
-                    if (string.IsNullOrEmpty(deviceId))
-                        continue;
+                var info = new UsbDeviceInfo(obj);
+                if (!types.HasFlag(info.Type))
+                    continue;
 
-                    var info = new UsbDeviceInfo(obj);
-                    if (!types.HasFlag(info.Type))
-                        continue;
-
-                    if (predicate == null || predicate(info))
-                        devices.Add(info);
-                }
+                if (predicate == null || predicate(info))
+                    devices.Add(info);
             }
-            catch (ManagementException)
-            {
-                // WMI failed, return partial or empty result
-            }
-
-            return devices;
+        }
+        catch (ManagementException)
+        {
+            // WMI failed, return partial or empty result
         }
 
-        private static ManagementEventWatcher GetManagementEventWatcher(string eventClassName)
+        return devices;
+    }
+
+    private static ManagementEventWatcher GetManagementEventWatcher(string eventClassName)
+    {
+        TimeSpan withinInterval = new(0, 0, 1);
+        string condition = "TargetInstance isa 'Win32_PnPEntity' AND TargetInstance.DeviceID LIKE 'USB%'";
+        var disconnectQuery = new WqlEventQuery(eventClassName, withinInterval, condition);
+        return new ManagementEventWatcher(disconnectQuery);
+    }
+
+    public void StartMonitoring()
+    {
+        _connectWatcher.EventArrived += ConnectWatcher_EventArrived;
+        _disconnectWatcher.EventArrived += DisconnectWatcher_EventArrived;
+        _connectWatcher.Start();
+        _disconnectWatcher.Start();
+    }
+
+    private void DisconnectWatcher_EventArrived(object sender, EventArrivedEventArgs e)
+    {
+        var device = GetDeviceFromEventArgs(e);
+        if (device != null)
+            _deviceDisconnectedSubject.OnNext(device);
+    }
+
+    private void ConnectWatcher_EventArrived(object sender, EventArrivedEventArgs e)
+    {
+        var device = GetDeviceFromEventArgs(e);
+        if (device != null)
+            _deviceConnectedSubject.OnNext(device);
+    }
+
+    public void StopMonitoring()
+    {
+        _connectWatcher.EventArrived -= ConnectWatcher_EventArrived;
+        _disconnectWatcher.EventArrived -= DisconnectWatcher_EventArrived;
+        _connectWatcher?.Stop();
+        _disconnectWatcher?.Stop();
+    }
+
+    private static UsbDeviceInfo? GetDeviceFromEventArgs(EventArrivedEventArgs args)
+    {
+        try
         {
-            TimeSpan withinInterval = new(0, 0, 1);
-            string condition = "TargetInstance isa 'Win32_PnPEntity' AND TargetInstance.DeviceID LIKE 'USB%'";
-            var disconnectQuery = new WqlEventQuery(eventClassName, withinInterval, condition);
-            return new ManagementEventWatcher(disconnectQuery);
+            if (args.NewEvent["TargetInstance"] is ManagementBaseObject targetInstance)
+                return new UsbDeviceInfo(targetInstance);
+
+            return null;
         }
-
-        public void StartMonitoring()
+        catch
         {
-            _connectWatcher.EventArrived += ConnectWatcher_EventArrived;
-            _disconnectWatcher.EventArrived += DisconnectWatcher_EventArrived;
-            _connectWatcher.Start();
-            _disconnectWatcher.Start();
-        }
-
-        private void DisconnectWatcher_EventArrived(object sender, EventArrivedEventArgs e)
-        {
-            var device = GetDeviceFromEventArgs(e);
-            if (device != null)
-                _deviceDisconnectedSubject?.OnNext(device);
-        }
-
-        private void ConnectWatcher_EventArrived(object sender, EventArrivedEventArgs e)
-        {
-            var device = GetDeviceFromEventArgs(e);
-            if (device != null)
-                _deviceConnectedSubject?.OnNext(device);
-        }
-
-        public void StopMonitoring()
-        {
-            _connectWatcher.EventArrived -= ConnectWatcher_EventArrived;
-            _disconnectWatcher.EventArrived -= DisconnectWatcher_EventArrived;
-            _connectWatcher?.Stop();
-            _disconnectWatcher?.Stop();
-        }
-
-        private static UsbDeviceInfo? GetDeviceFromEventArgs(EventArrivedEventArgs args)
-        {
-            try
-            {
-                if (args.NewEvent["TargetInstance"] is ManagementBaseObject targetInstance)
-                    return new UsbDeviceInfo(targetInstance);
-
-                return null;
-            }
-            catch
-            {
-                return null;
-            }
+            return null;
         }
     }
 }

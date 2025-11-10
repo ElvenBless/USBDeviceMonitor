@@ -19,16 +19,7 @@ internal class Program
 
         Console.WriteLine("Current USB devices:");
         foreach (var device in monitor.GetConnectedDevices(UsbDeviceType.Generic))
-        {
-            Console.WriteLine(device.DeviceId);
-            Console.WriteLine(device.ProductId);
-            Console.WriteLine(device.VendorId);
-            Console.WriteLine(device.Description);
-            Console.WriteLine(device.DriveLetter);
-            Console.WriteLine(device.Serial);
-            Console.WriteLine(device.Type);
-            Console.WriteLine("-----");
-        }
+            WriteDeviceInfoToConsole(device, null);
 
         monitor.StartMonitoring();
         Console.WriteLine("Monitoring USB devices. Press any key to exit...");
@@ -39,29 +30,33 @@ internal class Program
     private static void OnDeviceConnected(IUsbDeviceInfo device)
     {
         Console.WriteLine();
-        Console.WriteLine($"Connected:");
-        Console.WriteLine(device.DeviceId);
-        Console.WriteLine(device.ProductId);
-        Console.WriteLine(device.VendorId);
-        Console.WriteLine(device.Description);
-        Console.WriteLine(device.DriveLetter);
-        Console.WriteLine(device.Serial);
-        Console.WriteLine(device.Type);
-        Console.WriteLine("-----");
+        WriteDeviceInfoToConsole(device, "Connected:");
     }
 
     private static void OnDeviceDisconnected(IUsbDeviceInfo device)
     {
         Console.WriteLine();
-        Console.WriteLine($"Disconnected:");
-        Console.WriteLine(device.DeviceId);
-        Console.WriteLine(device.ProductId);
-        Console.WriteLine(device.VendorId);
-        Console.WriteLine(device.Description);
-        Console.WriteLine(device.Description);
-        Console.WriteLine(device.DriveLetter);
-        Console.WriteLine(device.Serial);
-        Console.WriteLine(device.Type);
+        WriteDeviceInfoToConsole(device, "Disconnected:");
+    }
+
+    // Helper to print device properties with their names. If header is null, no header is printed.
+    private static void WriteDeviceInfoToConsole(IUsbDeviceInfo device, string? header)
+    {
+        if (!string.IsNullOrEmpty(header))
+            Console.WriteLine(header);
+
+        void Write(string name, object? value)
+        {
+            Console.WriteLine($"{name}: {value}");
+        }
+
+        Write(nameof(device.DeviceId), device.DeviceId);
+        Write(nameof(device.ProductId), device.ProductId);
+        Write(nameof(device.VendorId), device.VendorId);
+        Write(nameof(device.Description), device.Description);
+        Write(nameof(device.DriveLetter), device.DriveLetter);
+        Write(nameof(device.Serial), device.Serial);
+        Write(nameof(device.Type), device.Type);
         Console.WriteLine("-----");
     }
 }
