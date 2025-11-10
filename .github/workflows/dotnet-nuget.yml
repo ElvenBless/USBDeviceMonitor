@@ -35,6 +35,9 @@ jobs:
   tests:
     runs-on: windows-latest
 
+    env:
+      Project_Name: Source\USBDeviceMonitor.Tests\USBDeviceMonitor.Tests.csproj
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -42,12 +45,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          # Use latest SDK that covers project targets (.NET7/8/9)
-          dotnet-version: '9.0.x'
-
-      - name: Restore
-        run: dotnet restore
+          dotnet-version: '8.0.x'
 
       - name: Run tests
-        # Run the specific test project to ensure tests are executed
-        run: dotnet test Source/USBDeviceMonitor.Tests/USBDeviceMonitor.Tests.csproj --configuration Release --verbosity normal
+        run: dotnet test $env:Project_Name --configuration Release --verbosity normal
