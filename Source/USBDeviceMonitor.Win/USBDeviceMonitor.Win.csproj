@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <PackageOutputPath>../Packages</PackageOutputPath>
     <LangVersion>12</LangVersion>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
     <Company>ElvenBless</Company>
     <ProjectUrl>https://github.com/Psynapsis/StaX.Domain</ProjectUrl>
     <PackageIcon>images/Icon.png</PackageIcon>
