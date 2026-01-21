@@ -17,7 +17,7 @@ public partial class UsbDeviceMonitor : IUsbDeviceMonitor
     private readonly ManagementEventWatcher _connectWatcher;
     private readonly ManagementEventWatcher _disconnectWatcher;
 
-    public UsbDeviceMonitor(bool useCompositeDevices = true, IScheduler? scheduler = null)
+    public UsbDeviceMonitor(bool useCompositeDevices = true, IScheduler? scheduler = null, int millisecondsCompositor = 20)
     {
         _connectWatcher = GetManagementEventWatcher("__InstanceCreationEvent");
         _disconnectWatcher = GetManagementEventWatcher("__InstanceDeletionEvent");
@@ -28,12 +28,12 @@ public partial class UsbDeviceMonitor : IUsbDeviceMonitor
         {
 
             DeviceConnected = _deviceConnectedSubject
-                .Buffer(TimeSpan.FromMilliseconds(20), sched)
+                .Buffer(TimeSpan.FromMilliseconds(millisecondsCompositor), sched)
                 .Where(buffer => buffer.Any())
                 .Select(buffer => buffer.Count == 1 ? buffer.First() : new CompositeUsbDeviceInfo([.. buffer]));
 
             DeviceDisconnected = _deviceDisconnectedSubject
-                .Buffer(TimeSpan.FromMilliseconds(20), sched)
+                .Buffer(TimeSpan.FromMilliseconds(millisecondsCompositor), sched)
                 .Where(buffer => buffer.Any())
                 .Select(buffer => buffer.Count == 1 ? buffer.First() : new CompositeUsbDeviceInfo([.. buffer]));
         }
