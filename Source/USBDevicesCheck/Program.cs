@@ -54,9 +54,9 @@ internal class Program
         Write(nameof(device.ProductId), device.ProductId);
         Write(nameof(device.VendorId), device.VendorId);
         Write(nameof(device.Description), device.Description);
-        Write(nameof(device.DriveLetter), device.DriveLetter);
         Write(nameof(device.Serial), device.Serial);
         Write(nameof(device.Type), device.Type);
+        Write(nameof(device.DriveLetter), device.DriveLetter);
         Console.WriteLine("-----");
     }
 }
