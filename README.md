@@ -27,7 +27,33 @@
 
 ## Установка
 
-Добавьте ссылку на проект `USBDeviceMonitor.Win` в вашем решении либо установите соответствующий пакет NuGet, если он публикуется в вашем окружении. В рамках этого репозитория можно просто сослаться на проект.
+### Из GitHub Packages
+
+Пакет публикуется в GitHub Packages. Для установки добавьте источник NuGet:
+
+```xml
+<configuration>
+  <packageSources>
+    <add key="github" value="https://nuget.pkg.github.com/ElvenBless/index.json" />
+  </packageSources>
+</configuration>
+```
+
+Или через командную строку:
+
+```bash
+dotnet nuget add source https://nuget.pkg.github.com/ElvenBless/index.json --name github
+```
+
+Затем установите пакет:
+
+```bash
+dotnet add package USBDeviceMonitor.Win
+```
+
+### Из исходного кода
+
+Добавьте ссылку на проект `USBDeviceMonitor.Win` в вашем решении. В рамках этого репозитория можно просто сослаться на проект.
 
 ## Быстрый старт
 

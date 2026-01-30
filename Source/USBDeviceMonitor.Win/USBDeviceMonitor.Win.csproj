@@ -7,11 +7,15 @@
     <PackageOutputPath>../Packages</PackageOutputPath>
     <LangVersion>12</LangVersion>
     <Version>1.1.5</Version>
+    <PackageId>USBDeviceMonitor.Win</PackageId>
+    <Authors>ElvenBless</Authors>
     <Company>ElvenBless</Company>
-    <ProjectUrl>https://github.com/Psynapsis/StaX.Domain</ProjectUrl>
+    <RepositoryUrl>https://github.com/ElvenBless/USBDeviceMonitor.git</RepositoryUrl>
+    <ProjectUrl>https://github.com/ElvenBless/USBDeviceMonitor</ProjectUrl>
     <PackageIcon>images/Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageDescription>Windows USB device monitoring library with drive letter detection support</PackageDescription>
   </PropertyGroup>
 
   <ItemGroup>
