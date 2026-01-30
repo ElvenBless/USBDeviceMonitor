@@ -6,11 +6,12 @@
     <Nullable>enable</Nullable>
     <PackageOutputPath>../Packages</PackageOutputPath>
     <LangVersion>12</LangVersion>
-    <Version>1.1.3</Version>
+    <Version>1.1.4</Version>
     <Company>ElvenBless</Company>
     <ProjectUrl>https://github.com/Psynapsis/StaX.Domain</ProjectUrl>
     <PackageIcon>images/Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
