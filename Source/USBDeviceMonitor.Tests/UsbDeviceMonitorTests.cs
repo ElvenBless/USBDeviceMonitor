@@ -19,17 +19,27 @@ public class UsbDeviceMonitorTests
         public string VendorId { get; init; } = string.Empty;
     }
 
+    private class MockDriveLetterWaiter : IDriveLetterWaiter
+    {
+        public Task<IUsbDeviceInfo> WaitForDriveLetterAsync(IUsbDeviceInfo device, int timeoutMs = 5000, int checkIntervalMs = 100)
+        {
+            // Return device immediately without waiting (for testing)
+            return Task.FromResult(device);
+        }
+    }
+
     [Fact]
     public void CompositeMode_GroupsMultipleConnectionsWithinWindow()
     {
         var scheduler = new TestScheduler();
-        var monitor = new UsbDeviceMonitor(useCompositeDevices: true, scheduler: scheduler);
+        var mockWaiter = new MockDriveLetterWaiter();
+        var monitor = new UsbDeviceMonitor(useCompositeDevices: true, scheduler: scheduler, driveLetterWaiter: mockWaiter);
 
         IUsbDeviceInfo? received = null;
         monitor.DeviceConnected.Subscribe(d => received = d);
 
         // Emit three devices quickly
-        var subjectField = typeof(UsbDeviceMonitor).GetField("_deviceConnectedSubject", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var subjectField = typeof(UsbDeviceMonitor).GetField("_rawDeviceConnectedSubject", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         var subj = (ISubject<IUsbDeviceInfo>)subjectField.GetValue(monitor)!;
 
         subj.OnNext(new TestDevice { DeviceId = "USB1" });
@@ -40,8 +50,10 @@ public class UsbDeviceMonitorTests
         scheduler.AdvanceBy(TimeSpan.FromMilliseconds(10).Ticks);
         Assert.Null(received);
 
-        // Advance past20ms window
+        // Advance past 20ms window and wait for async processing
         scheduler.AdvanceBy(TimeSpan.FromMilliseconds(15).Ticks);
+        // Need to advance more for async operations
+        scheduler.AdvanceBy(TimeSpan.FromMilliseconds(100).Ticks);
 
         Assert.NotNull(received);
         var composite = Assert.IsType<CompositeUsbDeviceInfo>(received);
@@ -54,31 +66,38 @@ public class UsbDeviceMonitorTests
     public void NonCompositeMode_PassesThroughSingleEvents()
     {
         var scheduler = new TestScheduler();
-        var monitor = new UsbDeviceMonitor(useCompositeDevices: false, scheduler: scheduler);
+        var mockWaiter = new MockDriveLetterWaiter();
+        var monitor = new UsbDeviceMonitor(useCompositeDevices: false, scheduler: scheduler, driveLetterWaiter: mockWaiter);
         IUsbDeviceInfo? received = null;
         monitor.DeviceConnected.Subscribe(d => received = d);
 
-        var subjectField = typeof(UsbDeviceMonitor).GetField("_deviceConnectedSubject", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var subjectField = typeof(UsbDeviceMonitor).GetField("_rawDeviceConnectedSubject", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         var subj = (ISubject<IUsbDeviceInfo>)subjectField.GetValue(monitor)!;
 
         var dev = new TestDevice { DeviceId = "USB_A" };
         subj.OnNext(dev);
-        Assert.Same(dev, received);
+        // Advance scheduler for async processing
+        scheduler.AdvanceBy(TimeSpan.FromMilliseconds(100).Ticks);
+        Assert.NotNull(received);
+        Assert.Equal("USB_A", received!.DeviceId);
     }
 
     [Fact]
     public void CompositeMode_SingleEvent_NotWrapped()
     {
         var scheduler = new TestScheduler();
-        var monitor = new UsbDeviceMonitor(useCompositeDevices: true, scheduler: scheduler);
+        var mockWaiter = new MockDriveLetterWaiter();
+        var monitor = new UsbDeviceMonitor(useCompositeDevices: true, scheduler: scheduler, driveLetterWaiter: mockWaiter);
         IUsbDeviceInfo? received = null;
         monitor.DeviceConnected.Subscribe(d => received = d);
 
-        var subjectField = typeof(UsbDeviceMonitor).GetField("_deviceConnectedSubject", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var subjectField = typeof(UsbDeviceMonitor).GetField("_rawDeviceConnectedSubject", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         var subj = (ISubject<IUsbDeviceInfo>)subjectField.GetValue(monitor)!;
 
         subj.OnNext(new TestDevice { DeviceId = "ONLY" });
         scheduler.AdvanceBy(TimeSpan.FromMilliseconds(25).Ticks);
+        // Advance more for async processing
+        scheduler.AdvanceBy(TimeSpan.FromMilliseconds(100).Ticks);
 
         Assert.NotNull(received);
         Assert.IsNotType<CompositeUsbDeviceInfo>(received);
