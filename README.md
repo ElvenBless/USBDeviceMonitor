@@ -16,7 +16,9 @@
 - Подписка на события появления/исчезновения устройств через `ManagementEventWatcher`.
 - Буферизация событий (по умолчанию 20 мс) и объединение нескольких событий в `CompositeUsbDeviceInfo` для удобной работы с составными устройствами.
 - Классификация устройства по типу: Generic, Storage, HID, Printer, Video, Bluetooth, MediaDevice (см. `UsbDeviceType`).
-- Выделение VID/PID/Serial из идентификатора устройства и попытка определения буквы диска для USB‑накопителей.
+- Выделение VID/PID/Serial из идентификатора устройства и определение буквы диска для USB‑накопителей.
+- **Автоматическое ожидание инициализации буквы диска** для устройств хранения данных перед отправкой события подключения. Поддерживает USB, SCSI и UAS устройства.
+- Поддержка частичного совпадения серийных номеров для корректной работы с UAS устройствами, где серийный номер в `Win32_PnPEntity` может отличаться от `Win32_DiskDrive`.
 
 ## Поддерживаемые платформы
 
@@ -62,21 +64,25 @@ monitor.StopMonitoring();
 
 - `IUsbDeviceMonitor`
 	- `IEnumerable<IUsbDeviceInfo> GetConnectedDevices(UsbDeviceType types = UsbDeviceType.All, Func<IUsbDeviceInfo, bool>? predicate = null)` — получить список подключённых устройств (с фильтром по типу и произвольным предикатом).
-	- `IObservable<IUsbDeviceInfo> DeviceConnected` — поток событий о подключениях.
+	- `IObservable<IUsbDeviceInfo> DeviceConnected` — поток событий о подключениях. **Для устройств хранения данных событие отправляется только после инициализации буквы диска** (ожидание до 5 секунд по умолчанию).
 	- `IObservable<IUsbDeviceInfo> DeviceDisconnected` — поток событий об отключениях.
 	- `void StartMonitoring()` / `void StopMonitoring()` — управление подписками на системные события.
 
 - `UsbDeviceMonitor` — реализация `IUsbDeviceMonitor`.
-	- Конструктор: `UsbDeviceMonitor(bool useCompositeDevices = true, IScheduler? scheduler = null)`
-		- `useCompositeDevices = true` включает 20‑мс буферизацию и склейку нескольких событий в один `CompositeUsbDeviceInfo`.
+	- Конструктор: `UsbDeviceMonitor(bool useCompositeDevices = true, IScheduler? scheduler = null, int millisecondsCompositor = 20, IDriveLetterWaiter? driveLetterWaiter = null)`
+		- `useCompositeDevices = true` включает буферизацию и склейку нескольких событий в один `CompositeUsbDeviceInfo`.
 		- `scheduler` — планировщик Rx для буферизации (по умолчанию `DefaultScheduler.Instance`).
+		- `millisecondsCompositor` — время буферизации в миллисекундах для группировки событий (по умолчанию 20 мс).
+		- `driveLetterWaiter` — опциональная реализация `IDriveLetterWaiter` для ожидания инициализации буквы диска (по умолчанию используется встроенная реализация).
 
 - `IUsbDeviceInfo` — описание устройства:
 	- `string Description`, `string DeviceId`, `string PNPDdeviceId`, `string VendorId`, `string ProductId`, `string Serial`, `string DriveLetter`, `UsbDeviceType Type`.
+	- Для устройств с несколькими томами `DriveLetter` содержит все буквы дисков, разделённые `" | "`.
 
 - `CompositeUsbDeviceInfo` — агрегирует несколько `IUsbDeviceInfo`:
 	- Строковые свойства объединяются с удалением дубликатов через разделитель `" | "`.
 	- Тип устройства — побитовое объединение флагов.
+	- Свойство `Devices` предоставляет доступ к списку всех агрегированных устройств.
 
 - `UsbDeviceType` — флаги типов устройств: `Generic`, `Storage`, `HumanInterface`, `Printer`, `Video`, `Bluetooth`, `MediaDevice`, `All`.
 
@@ -110,9 +116,19 @@ dotnet run --project Source\USBDevicesCheck\USBDevicesCheck.csproj -c Debug
 
 - буферизации и агрегации событий в `CompositeUsbDeviceInfo`;
 - прозрачной работы в режиме без агрегации;
-- корректной агрегации строковых полей и флагов типов.
+- корректной агрегации строковых полей и флагов типов;
+- функциональности ожидания инициализации буквы диска (`DriveLetterWaiter`).
 
-На момент подготовки README тесты выполняются успешно (xUnit, 5 тестов, .NET 8).
+На момент подготовки README тесты выполняются успешно (xUnit, .NET 8).
+
+## Особенности работы с буквами дисков
+
+Библиотека автоматически ожидает инициализацию буквы диска для устройств типа `Storage` и `Generic` (которые могут быть накопителями) перед отправкой события `DeviceConnected`. Это решает проблему, когда Windows ещё не успела назначить букву диска к моменту обнаружения устройства.
+
+- Ожидание выполняется до 5 секунд (настраивается через `IDriveLetterWaiter`).
+- Поддерживаются USB, SCSI и UAS устройства.
+- Для UAS устройств используется частичное совпадение серийных номеров, так как формат может отличаться между `Win32_PnPEntity` и `Win32_DiskDrive`.
+- Если буква диска не найдена в течение таймаута, событие всё равно отправляется с пустой `DriveLetter`.
 
 ## Лицензия
 
