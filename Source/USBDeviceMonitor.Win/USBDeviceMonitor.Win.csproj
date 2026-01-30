@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <PackageOutputPath>../Packages</PackageOutputPath>
     <LangVersion>12</LangVersion>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
     <PackageId>USBDeviceMonitor.Win</PackageId>
     <Authors>ElvenBless</Authors>
     <Company>ElvenBless</Company>

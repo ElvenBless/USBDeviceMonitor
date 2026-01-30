@@ -30,8 +30,8 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore Source/USBDeviceMonitor.sln
 
-      - name: Build
-        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+      - name: Build solution
+        run: dotnet build Source/USBDeviceMonitor.sln --configuration Release --no-restore
 
       - name: Run tests
         run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build --verbosity normal
